@@ -1,0 +1,14 @@
+# Sem segredos aqui: tudo vem de variáveis de ambiente (ver .env.example).
+spring:
+  application:
+    name: restaurante2
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${POSTGRES_DB}
+    username: app
+    password: ${APP_DB_PASSWORD}
+  flyway:
+    # O Flyway liga-se como dono (migracao); o resto da app usa o "app" (ADR 0002).
+    user: migracao
+    password: ${MIGRACAO_PASSWORD}
+    schemas: restaurante
+    create-schemas: false
