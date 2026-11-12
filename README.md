@@ -44,7 +44,7 @@ Um só processo Spring Boot (monólito modular, [ADR 0001](docs/adr/0001-monolit
 - Um módulo só importa o `api` de outro; não há ciclos.
 - `partilhado` tem só tipos de valor (IDs, `Dinheiro`, enums): não depende dos outros módulos e não leva anotações Spring nem JPA.
 
-O pedido guarda o estado atual e um registo de eventos na mesma transação ([ADR 0002](docs/adr/0002-pedidos-estado-mais-log-de-eventos.md)). Só o módulo `pedidos` escreve eventos; a cozinha e o painel lêem o `pedido` e consultam o registo.
+O pedido guarda o estado atual e um registo de eventos na mesma transação ([ADR 0002](docs/adr/0002-pedidos-estado-mais-log-de-eventos.md)). Só o módulo `pedidos` escreve eventos; a cozinha e o painel lêem o `pedido` e consultam o registo apenas através de `pedidos.api`, nunca lendo as tabelas diretamente ([ADR 0001](docs/adr/0001-monolito-modular.md)).
 
 ADRs neste repositório:
 
@@ -117,11 +117,9 @@ Para reportar uma vulnerabilidade, usa um [aviso privado de segurança no GitHub
 
 ## Contribuição
 
-Não são aceites contribuições externas.
+Contribuições só mediante pedido direto ao autor (Klaillton Santos).
 
-O fluxo de pull request abaixo aplica-se apenas aos responsáveis e agentes do projeto. Qualquer contribuição externa futura exigiria um CLA (acordo de licença de contribuinte).
-
-Numa alteração interna, trabalha numa branch e abre um pull request contra a `main`. A `main` é protegida: o merge só depois dos checks obrigatórios acima. Não faças push directo para a `main`.
+Trabalha numa branch e abre um pull request contra a `main`. A `main` é protegida: o merge só depois dos checks obrigatórios acima. Não faças push directo para a `main`.
 
 ## Licença
 
