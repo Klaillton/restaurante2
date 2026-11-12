@@ -23,7 +23,7 @@ permissions:
 env:
   # Kit fixado (o mesmo de policy-base.yml). Mudar é uma alteração de política em .github/**.
   GAUNTLET_KIT_REPO: Klaillton/ai-code-gauntlet
-  GAUNTLET_KIT_SHA: d372df1010d05167ce141498c9550ff3cab43fca
+  GAUNTLET_KIT_SHA: a95b958a02a797d133926721959bda8b874e0d14
   MAVEN_VERSION: 3.9.11
   MAVEN_SHA512: bcfe4fe305c962ace56ac7b5fc7a08b87d5abd8b7e89027ab251069faebee516b0ded8961445d6d91ec1985dfe30f8153268843c89aa392733d1a3ec956c9978
 

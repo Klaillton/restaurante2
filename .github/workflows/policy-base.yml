@@ -27,7 +27,7 @@ concurrency:
 env:
   # Pinned gauntlet kit commit (the runner). Changing it is a .github/** policy change.
   GAUNTLET_KIT_REPO: Klaillton/ai-code-gauntlet
-  GAUNTLET_KIT_SHA: d372df1010d05167ce141498c9550ff3cab43fca
+  GAUNTLET_KIT_SHA: a95b958a02a797d133926721959bda8b874e0d14
 
 jobs:
   enforce-pr:
