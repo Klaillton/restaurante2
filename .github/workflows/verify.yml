@@ -1,0 +1,135 @@
+name: verify
+
+# Dois checks, para poderem ser obrigatórios na main:
+#   - "mvn verify (JDK 21)": compila e corre todos os testes, incluindo o gate do pedido_evento
+#     (Testcontainers + Postgres real) e as regras ArchUnit do ADR 0001.
+#   - "gauntlet (kit S1)": o runner do ai-code-gauntlet fixado num SHA (policy-base, stack,
+#     l0-config, gates L0, pom guard e uma corrida do surefire numa cópia temporária).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  # Só os PR cancelam; uma corrida na main termina sempre.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Kit fixado (o mesmo de policy-base.yml). Mudar é uma alteração de política em .github/**.
+  GAUNTLET_KIT_REPO: Klaillton/ai-code-gauntlet
+  GAUNTLET_KIT_SHA: d372df1010d05167ce141498c9550ff3cab43fca
+  MAVEN_VERSION: 3.9.11
+  MAVEN_SHA512: bcfe4fe305c962ace56ac7b5fc7a08b87d5abd8b7e89027ab251069faebee516b0ded8961445d6d91ec1985dfe30f8153268843c89aa392733d1a3ec956c9978
+
+jobs:
+  mvn-verify:
+    name: mvn verify (JDK 21)
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Install Maven (pinned, sha512-checked)
+        run: |
+          set -euo pipefail
+          BASE="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries"
+          curl --proto '=https' --tlsv1.2 -sSfL -o maven.tgz "${BASE}/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+          echo "${MAVEN_SHA512}  maven.tgz" | sha512sum -c
+          tar -xzf maven.tgz -C "$RUNNER_TEMP"
+          rm maven.tgz
+          echo "$RUNNER_TEMP/apache-maven-${MAVEN_VERSION}/bin" >> "$GITHUB_PATH"
+      - run: mvn -v
+      - run: mvn -B -ntp verify
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+  gauntlet:
+    name: gauntlet (kit S1)
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fetch main for the diff gates
+        run: git fetch --no-tags origin main:refs/remotes/origin/main || git fetch origin main
+      - name: Check out the pinned gauntlet kit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.GAUNTLET_KIT_REPO }}
+          ref: ${{ env.GAUNTLET_KIT_SHA }}
+          path: .gauntlet-kit
+          persist-credentials: false
+      # Fora do workspace: o secrets-scan e a cópia do Maven não podem ver as fixtures do kit.
+      - name: Move the kit out of the workspace
+        run: mv .gauntlet-kit "$RUNNER_TEMP/gauntlet-kit"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Install Maven (pinned, sha512-checked)
+        run: |
+          set -euo pipefail
+          BASE="https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries"
+          curl --proto '=https' --tlsv1.2 -sSfL -o "$RUNNER_TEMP/maven.tgz" "${BASE}/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+          echo "${MAVEN_SHA512}  $RUNNER_TEMP/maven.tgz" | sha512sum -c
+          tar -xzf "$RUNNER_TEMP/maven.tgz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-${MAVEN_VERSION}/bin" >> "$GITHUB_PATH"
+      - name: Install the kit runner deps only (locked, no lifecycle scripts)
+        run: npm ci --prefix "$RUNNER_TEMP/gauntlet-kit/packages/gauntlet-gates" --ignore-scripts --no-audit --no-fund
+      # CHANGE-4: no push a base é github.event.before; a única concessão é a label humana
+      # policy-change-approved no PR que produziu este commit.
+      - name: Policy grant from merged PR label (push only)
+        id: policy-grant
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          labels=$(gh api "repos/${REPO}/commits/${SHA}/pulls" \
+            --jq '[.[] | select(.merged_at != null) | .labels[].name] | join(",")' || true)
+          case ",$labels," in
+            *,policy-change-approved,*) echo "approved=1" >> "$GITHUB_OUTPUT" ;;
+            *) echo "approved=" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Gauntlet runner (pinned kit)
+        env:
+          CI: "true"
+          POLICY_CHANGE_APPROVED: ${{ (contains(github.event.pull_request.labels.*.name, 'policy-change-approved') || steps.policy-grant.outputs.approved == '1') && '1' || '' }}
+        # Repo Maven escolhido pelo core, fora do workspace (cache do setup-java; o core não instala lá).
+        run: GAUNTLET_MAVEN_REPO="$HOME/.m2/repository" node "$RUNNER_TEMP/gauntlet-kit/packages/gauntlet-gates/run.mjs" --root .
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gauntlet-report
+          path: |
+            gauntlet-report.json
+            *-report.json
+          if-no-files-found: ignore

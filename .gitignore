@@ -1,0 +1,45 @@
+# Segredos (o repositório é público)
+.env
+*.env
+.env.*
+!.env.example
+.cloudflared/*.json
+.cloudflared/cert.pem
+cert.pem
+
+# Build
+target/
+node_modules/
+dist/
+
+# IDE / SO
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+.DS_Store
+gauntlet-report.json
+spec-sync-report.json
+no-cheat-report.json
+protect-specs-report.json
+policy-base-report.json
+holes-review-report.json
+adr-lint-report.json
+sdd-presence-report.json
+spec-code-report.json
+mutation-report.json
+gherkin-mutation-report.json
+complexity-report.json
+arch-bound-report.json
+crap-report.json
+deps-lock-report.json
+secrets-scan-report.json
+maven-report.json
+.gauntlet/allow-spec-edit
+.gauntlet/allow-deps-edit
+.gauntlet/allow-secrets-paths
+
+# Kit do gauntlet (checkout local/CI)
+.gauntlet-kit/

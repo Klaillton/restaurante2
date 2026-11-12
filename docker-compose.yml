@@ -1,0 +1,42 @@
+# PoC: tudo no portátil, em rede local, sem internet.
+#   cp .env.example .env   # e trocar TODOS os valores
+#   docker compose up -d --build
+# O script de roles só corre com o volume vazio (docker compose down -v para recomeçar).
+name: restaurante2
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?defina no .env}
+      POSTGRES_USER: ${POSTGRES_USER:?defina no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina no .env}
+      MIGRACAO_PASSWORD: ${MIGRACAO_PASSWORD:?defina no .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?defina no .env}
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:?defina no .env}
+      MIGRACAO_PASSWORD: ${MIGRACAO_PASSWORD:?defina no .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?defina no .env}
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres-data:
