@@ -108,6 +108,19 @@ class PedidoEventoSoInsertsGateTest {
     assertPermissaoNegada("ALTER TABLE pedido_evento DISABLE TRIGGER ALL");
   }
 
+  @Test
+  void appNaoPodeAlterarIdentidadeDoPedido() throws SQLException {
+    assertPermissaoNegada(
+        "UPDATE pedido SET pedido_id = gen_random_uuid() WHERE pedido_id = '" + PEDIDO_ID + "'");
+    assertPermissaoNegada(
+        "UPDATE pedido SET criado_em = now() WHERE pedido_id = '" + PEDIDO_ID + "'");
+  }
+
+  @Test
+  void appNaoPodeApagarPedido() throws SQLException {
+    assertPermissaoNegada("DELETE FROM pedido WHERE pedido_id = '" + PEDIDO_ID + "'");
+  }
+
   private static void assertPermissaoNegada(String sql) throws SQLException {
     try (Connection app = ligarComoApp(); Statement st = app.createStatement()) {
       // Numa transação desfeita no fim: se um GRANT a mais deixar o comando passar, este teste

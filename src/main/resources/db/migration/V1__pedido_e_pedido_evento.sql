@@ -26,7 +26,8 @@ CREATE INDEX pedido_evento_recebido_em_idx ON pedido_evento (recebido_em);
 -- Permissões (ADR 0002, ponto 4). O app não é dono de nada.
 REVOKE ALL ON pedido, pedido_evento FROM PUBLIC;
 
-GRANT SELECT, INSERT, UPDATE ON pedido TO app;
+GRANT SELECT, INSERT ON pedido TO app;
+GRANT UPDATE (estado, atualizado_em) ON pedido TO app;
 
 GRANT SELECT, INSERT ON pedido_evento TO app;
 REVOKE UPDATE, DELETE, TRUNCATE ON pedido_evento FROM app;
