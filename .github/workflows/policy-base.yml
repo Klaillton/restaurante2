@@ -12,8 +12,9 @@ name: policy-base
 # by the repo OWNER (author_association OWNER; never an App/bot or GAUNTLET_AGENT_LOGINS) on the
 # exact head SHA proves it, read
 # live from the API. Reviews do not fire pull_request_target: approve, then add the label (or
-# re-run this job). GAUNTLET_SHARED_TOKEN_LOGINS (Actions variable) lists humans whose token
-# agents also hold; their reviews fail as human-unattributed until the token is revoked.
+# re-run this job). GAUNTLET_SHARED_TOKEN_LOGINS (Actions variable, MANDATORY) lists humans whose
+# token agents also hold; their reviews fail as human-unattributed until the token is revoked.
+# Set it to `none` when no human shares a token with agents. Missing or empty fails closed.
 # Hardening: no secrets, persist-credentials: false, read-only token, PR number and SHAs only
 # via env (never interpolated into run:). Make this job a required status check.
 
@@ -33,7 +34,7 @@ concurrency:
 env:
   # Pinned gauntlet kit commit (the runner). Changing it is a .github/** policy change.
   GAUNTLET_KIT_REPO: Klaillton/ai-code-gauntlet
-  GAUNTLET_KIT_SHA: a01f435f951467629a813ad048bf62a2af42cdd4
+  GAUNTLET_KIT_SHA: 1c229fbb4720df2ad2acb2bdeb07b0a24ffc975b
 
 jobs:
   enforce-pr:
