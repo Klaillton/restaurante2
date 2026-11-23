@@ -23,7 +23,7 @@ permissions:
 env:
   # Kit fixado (o mesmo de policy-base.yml). Mudar é uma alteração de política em .github/**.
   GAUNTLET_KIT_REPO: Klaillton/ai-code-gauntlet
-  GAUNTLET_KIT_SHA: d372df1010d05167ce141498c9550ff3cab43fca
+  GAUNTLET_KIT_SHA: 1c229fbb4720df2ad2acb2bdeb07b0a24ffc975b
   MAVEN_VERSION: 3.9.11
   MAVEN_SHA512: bcfe4fe305c962ace56ac7b5fc7a08b87d5abd8b7e89027ab251069faebee516b0ded8961445d6d91ec1985dfe30f8153268843c89aa392733d1a3ec956c9978
 
@@ -103,26 +103,16 @@ jobs:
           echo "$RUNNER_TEMP/apache-maven-${MAVEN_VERSION}/bin" >> "$GITHUB_PATH"
       - name: Install the kit runner deps only (locked, no lifecycle scripts)
         run: npm ci --prefix "$RUNNER_TEMP/gauntlet-kit/packages/gauntlet-gates" --ignore-scripts --no-audit --no-fund
-      # CHANGE-4: no push a base é github.event.before; a única concessão é a label humana
-      # policy-change-approved no PR que produziu este commit.
-      - name: Policy grant from merged PR label (push only)
-        id: policy-grant
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          labels=$(gh api "repos/${REPO}/commits/${SHA}/pulls" \
-            --jq '[.[] | select(.merged_at != null) | .labels[].name] | join(",")' || true)
-          case ",$labels," in
-            *,policy-change-approved,*) echo "approved=1" >> "$GITHUB_OUTPUT" ;;
-            *) echo "approved=" >> "$GITHUB_OUTPUT" ;;
-          esac
+      # app-identity-2: o grant é lido em direto pelas gates. A label do PR diz qual é o grant e só
+      # um approve do OWNER no SHA exato da cabeça o comprova (no push, o PR que produziu o commit).
+      # Flags de env são ignoradas dentro do GitHub Actions; erros da API falham em fechado.
       - name: Gauntlet runner (pinned kit)
         env:
           CI: "true"
-          POLICY_CHANGE_APPROVED: ${{ (contains(github.event.pull_request.labels.*.name, 'policy-change-approved') || steps.policy-grant.outputs.approved == '1') && '1' || '' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          # Logins cujo token é partilhado com agentes: o approve deles falha como human-unattributed.
+          GAUNTLET_SHARED_TOKEN_LOGINS: ${{ vars.GAUNTLET_SHARED_TOKEN_LOGINS }}
+          GAUNTLET_AGENT_LOGINS: ${{ vars.GAUNTLET_AGENT_LOGINS }}
         # Repo Maven escolhido pelo core, fora do workspace (cache do setup-java; o core não instala lá).
         run: GAUNTLET_MAVEN_REPO="$HOME/.m2/repository" node "$RUNNER_TEMP/gauntlet-kit/packages/gauntlet-gates/run.mjs" --root .
       - if: always()
